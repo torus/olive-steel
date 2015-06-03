@@ -12,27 +12,53 @@ function init() {
 
     // var circle = new createjs.Shape();
     // circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 20);
-    var circle = makeAvatar();
-    circle.x = Math.random() * stageWidth;
-    circle.y = Math.random() * stageHeight;
-    stage.addChild(circle);
+    var avatar = makeAvatar();
+    avatar.shape.x = Math.random() * stageWidth;
+    avatar.shape.y = Math.random() * stageHeight;
+    avatar.setDest(avatar.shape.x, avatar.shape.y);
+    stage.addChild(avatar.shape);
 
     stage.update();
 
-    return [stage, circle];
+    return [stage, avatar];
 }
 
-function makeAvatar() {
+var Avatar = function() {
     var circle = new createjs.Shape();
     circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 20);
 
-    return circle;
+    this.destX = circle.x;
+    this.destY = circle.y;
+    this.shape = circle;
+}
+
+Avatar.prototype.setDest = function(x, y) {
+    this.destX = x;
+    this.destY = y;
+}
+
+Avatar.prototype.updatePosition = function() {
+    var circle = this.shape;
+
+    if (isNaN(this.destX) || isNaN(this.destY))
+	return
+
+    if (circle.x != this.destX) {
+	circle.x += 0.1 * (this.destX - circle.x);
+    }
+    if (circle.y != this.destY) {
+	circle.y += 0.1 * (this.destY - circle.y);
+    }
+}
+
+function makeAvatar() {
+    return new Avatar();
 }
 
 $(document).ready(function() {
     var res = init();
     var stage = res[0];
-    var circle = res[1];
+    var avatar = res[1];
 
     var avatars = {};
 
@@ -50,46 +76,38 @@ $(document).ready(function() {
             /* Calculate the list of initial users */
             var str = event.data.replace(/^Welcome! Users: /, '');
             if(str != "") {
-                users = str.split(", ");
-                refreshUsers();
+                for (var name in str.split(", ")) {
+		    avatars[name] = makeAvatar();
+		}
             }
 
-            $('#join-section').hide();
-            $('#chat-section').show();
-            $('#users-section').show();
-
             ws.onmessage = onMessage(user, stage, avatars);
-
         } else {
             $('#warnings').append(event.data);
             ws.close();
         }
     };
 
-    var destX = circle.x;
-    var destY = circle.y;
+    var destX = avatar.shape.x;
+    var destY = avatar.shape.y;
     stage.addEventListener("click", function(event) {
 	console.log([event.rawX, event.rawY]);
 	destX = event.rawX;
 	destY = event.rawY;
+	avatar.setDest(destX, destY);
 
 	ws.send(JSON.stringify({x: destX, y: destY}));
     });
 
     createjs.Ticker.addEventListener("tick", function(event) {
-	if (circle.x != destX) {
-	    circle.x += 0.1 * (destX - circle.x);
+	for (var a in avatars) {
+	    avatars[a].updatePosition();
 	}
-	if (circle.y != destY) {
-	    circle.y += 0.1 * (destY - circle.y);
-	}
+	avatar.updatePosition();
 	stage.update();
     });
 
 });
-
-
-
 
 function createWebSocket(path) {
     var host = window.location.hostname;
@@ -98,15 +116,6 @@ function createWebSocket(path) {
 
     var Socket = "MozWebSocket" in window ? MozWebSocket : WebSocket;
     return new Socket(uri);
-}
-
-var users = [];
-
-function refreshUsers() {
-    $('#users').html('');
-    for(i in users) {
-        $('#users').append($(document.createElement('li')).text(users[i]));
-    }
 }
 
 function onMessage(user, stage, avatars) {
@@ -119,11 +128,13 @@ function onMessage(user, stage, avatars) {
 		var action = JSON.parse(match[2]);
 		console.log(who, action);
 		if (!avatars[who]) {
+		    console.warn("avatar " + who + " does not exist. spawning...");
 		    stage.addChild(avatars[who] = makeAvatar());
 		}
 		var avatar = avatars[who];
-		avatar.x = action.x;
-		avatar.y = action.y;
+		// avatar.x = action.x;
+		// avatar.y = action.y;
+		avatar.setDest(action.x, action.y);
 	    }
 	} else {
 	    var join = event.data.match(/(.*) (joined|disconnected)$/);

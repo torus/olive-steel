@@ -15,7 +15,8 @@ function init() {
     var avatar = makeAvatar();
     avatar.shape.x = Math.random() * stageWidth;
     avatar.shape.y = Math.random() * stageHeight;
-    avatar.setDest(avatar.shape.x, avatar.shape.y);
+    // avatar.setDest(avatar.shape, avatar.shape);
+    // avatar.setDest(avatar.shape.x, avatar.shape.y);
     stage.addChild(avatar.shape);
 
     stage.update();
@@ -27,27 +28,57 @@ var Avatar = function() {
     var circle = new createjs.Shape();
     circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 20);
 
-    this.destX = circle.x;
-    this.destY = circle.y;
+    // this.destX = circle.x;
+    // this.destY = circle.y;
+    this.move = null;
     this.shape = circle;
 }
 
-Avatar.prototype.setDest = function(x, y) {
-    this.destX = x;
-    this.destY = y;
+function interpolate(start, end, startTime, endTime, currTime) {
+    var d = endTime - startTime;
+    var a = endTime - currTime;
+    var b = currTime - startTime;
+    return {x: (a * start.x + b * end.x) / d, y: (a * start.y + b * end.y) / d};
+}
+
+var Move = function Move(startPos, endPos, startTime, endTime) {
+    this.startPos = startPos;
+    this.endPos = endPos;
+    this.startTime = startTime;
+    this.endTime = endTime;
+}
+
+// Avatar.prototype.setDest = function(x, y) {
+Avatar.prototype.setMove = function(startPos, endPos, startTime, endTime) {
+    this.move = new Move(startPos, endPos, startTime, endTime);
 }
 
 Avatar.prototype.updatePosition = function() {
     var circle = this.shape;
 
-    if (isNaN(this.destX) || isNaN(this.destY))
-	return
+    // if (isNaN(this.destX) || isNaN(this.destY))
+    // 	return
 
-    if (circle.x != this.destX) {
-	circle.x += 0.1 * (this.destX - circle.x);
-    }
-    if (circle.y != this.destY) {
-	circle.y += 0.1 * (this.destY - circle.y);
+    // if (circle.x != this.destX) {
+    // 	circle.x += 0.1 * (this.destX - circle.x);
+    // }
+    // if (circle.y != this.destY) {
+    // 	circle.y += 0.1 * (this.destY - circle.y);
+    // }
+
+    var move = this.move;
+    if (move) {
+	var currTime = new Date().getTime();
+	if (move.endTime > currTime) {
+	    var newpos = interpolate(move.startPos, move.endPos, move.startTime, move.endTime, currTime);
+	    circle.x = newpos.x;
+	    circle.y = newpos.y;
+	} else {
+	    circle.x = move.endPos.x;
+	    circle.y = move.endPos.y;
+	    this.move = null;
+	    console.log("arrived.");
+	}
     }
 }
 
@@ -77,7 +108,8 @@ $(document).ready(function() {
             var str = event.data.replace(/^Welcome! Users: /, '');
             if(str != "") {
                 for (var name in str.split(", ")) {
-		    avatars[name] = makeAvatar();
+		    var av = avatars[name] = makeAvatar();
+		    stage.addChild(av.shape);
 		}
             }
 
@@ -94,9 +126,21 @@ $(document).ready(function() {
 	console.log([event.rawX, event.rawY]);
 	destX = event.rawX;
 	destY = event.rawY;
-	avatar.setDest(destX, destY);
+	// avatar.setDest(destX, destY);
+	var currX = avatar.shape.x;
+	var currY = avatar.shape.y;
+	var currTime = new Date().getTime();
+	var dist = Math.sqrt((destX - currX) * (destX - currX) + (destY - currY) * (destY - currY));
+	var endTime = currTime + (dist * 10 | 0);
 
-	ws.send(JSON.stringify({x: destX, y: destY}));
+	console.log(currX, currY, destX, destY, currTime, dist, endTime);
+
+	var move = new Move({x: currX, y: currY},
+			    {x: destX, y: destY},
+			    currTime, endTime);
+	avatar.move = move;
+	ws.send(JSON.stringify({move: move}));
+	// ws.send(JSON.stringify({x: destX, y: destY}));
     });
 
     createjs.Ticker.addEventListener("tick", function(event) {
@@ -129,12 +173,17 @@ function onMessage(user, stage, avatars) {
 		console.log(who, action);
 		if (!avatars[who]) {
 		    console.warn("avatar " + who + " does not exist. spawning...");
-		    stage.addChild(avatars[who] = makeAvatar());
+		    var av = avatars[who] = makeAvatar();
+		    stage.addChild(av.shape);
 		}
 		var avatar = avatars[who];
 		// avatar.x = action.x;
 		// avatar.y = action.y;
-		avatar.setDest(action.x, action.y);
+		// avatar.setDest(action.x, action.y);
+		var move = action.move;
+		if (move) {
+		    avatar.setMove(move.startPos, move.endPos, move.startTime, move.endTime);
+		}
 	    }
 	} else {
 	    var join = event.data.match(/(.*) (joined|disconnected)$/);

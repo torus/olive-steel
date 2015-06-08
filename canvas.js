@@ -10,13 +10,9 @@ function init() {
     bg.graphics.beginFill("#eee").drawRect(0, 0, stageWidth, stageHeight);
     stage.addChild(bg);
 
-    // var circle = new createjs.Shape();
-    // circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 20);
     var avatar = makeAvatar();
     avatar.shape.x = Math.random() * stageWidth;
     avatar.shape.y = Math.random() * stageHeight;
-    // avatar.setDest(avatar.shape, avatar.shape);
-    // avatar.setDest(avatar.shape.x, avatar.shape.y);
     stage.addChild(avatar.shape);
 
     stage.update();
@@ -28,8 +24,6 @@ var Avatar = function() {
     var circle = new createjs.Shape();
     circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 20);
 
-    // this.destX = circle.x;
-    // this.destY = circle.y;
     this.move = null;
     this.shape = circle;
 }
@@ -55,16 +49,6 @@ Avatar.prototype.setMove = function(startPos, endPos, startTime, endTime) {
 
 Avatar.prototype.updatePosition = function() {
     var circle = this.shape;
-
-    // if (isNaN(this.destX) || isNaN(this.destY))
-    // 	return
-
-    // if (circle.x != this.destX) {
-    // 	circle.x += 0.1 * (this.destX - circle.x);
-    // }
-    // if (circle.y != this.destY) {
-    // 	circle.y += 0.1 * (this.destY - circle.y);
-    // }
 
     var move = this.move;
     if (move) {
@@ -126,7 +110,7 @@ $(document).ready(function() {
 	console.log([event.rawX, event.rawY]);
 	destX = event.rawX;
 	destY = event.rawY;
-	// avatar.setDest(destX, destY);
+
 	var currX = avatar.shape.x;
 	var currY = avatar.shape.y;
 	var currTime = new Date().getTime();
@@ -140,7 +124,6 @@ $(document).ready(function() {
 			    currTime, endTime);
 	avatar.move = move;
 	ws.send(JSON.stringify({move: move}));
-	// ws.send(JSON.stringify({x: destX, y: destY}));
     });
 
     createjs.Ticker.addEventListener("tick", function(event) {
@@ -177,9 +160,6 @@ function onMessage(user, stage, avatars) {
 		    stage.addChild(av.shape);
 		}
 		var avatar = avatars[who];
-		// avatar.x = action.x;
-		// avatar.y = action.y;
-		// avatar.setDest(action.x, action.y);
 		var move = action.move;
 		if (move) {
 		    avatar.setMove(move.startPos, move.endPos, move.startTime, move.endTime);

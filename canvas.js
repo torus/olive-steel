@@ -91,9 +91,12 @@ $(document).ready(function() {
             /* Calculate the list of initial users */
             var str = event.data.replace(/^Welcome! Users: /, '');
             if(str != "") {
-                for (var name in str.split(", ")) {
+		var names = str.split(", ");
+                for (var idx in names) {
+		    var name = names[idx];
 		    var av = avatars[name] = makeAvatar();
 		    stage.addChild(av.shape);
+		    console.log("avatar spawned", name)
 		}
             }
 
@@ -168,6 +171,13 @@ function onMessage(user, stage, avatars) {
 	} else {
 	    var join = event.data.match(/(.*) (joined|disconnected)$/);
 	    console.log(join[1] + " " + join[2]);
+	    if (join[2] == "disconnected") {
+		var av = avatars[join[1]];
+		if (av) {
+		    stage.removeChild(av.shape);
+		    delete avatars[join[1]];
+		}
+	    }
 	}
     }
 }

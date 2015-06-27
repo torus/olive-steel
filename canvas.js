@@ -70,6 +70,16 @@ function makeAvatar() {
     return new Avatar();
 }
 
+var NoopStream = function() {
+};
+NoopStream.prototype.head = function head() {
+    return function() {};
+};
+
+NoopStream.prototype.tail = function tail() {
+    return new NoopStream;
+};
+
 $(document).ready(function() {
     var res = init();
     var stage = res[0];
@@ -84,6 +94,8 @@ $(document).ready(function() {
     ws.onopen = function() {
         ws.send('Hi! I am ' + user);
     };
+
+    var streamBox = [new NoopStream];
 
     ws.onmessage = function(event) {
 	console.log(event);
@@ -100,7 +112,7 @@ $(document).ready(function() {
 		}
             }
 
-            ws.onmessage = onMessage(user, stage, avatars);
+            ws.onmessage = onMessage(user, stage, avatars, streamBox);
         } else {
             $('#warnings').append(event.data);
             ws.close();
@@ -125,15 +137,18 @@ $(document).ready(function() {
 	var move = new Move({x: currX, y: currY},
 			    {x: destX, y: destY},
 			    currTime, endTime);
-	avatar.move = move;
+	// avatar.move = move;
 	ws.send(JSON.stringify({move: move}));
+	streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move));
     });
 
     createjs.Ticker.addEventListener("tick", function(event) {
-	for (var a in avatars) {
-	    avatars[a].updatePosition();
-	}
-	avatar.updatePosition();
+	// for (var a in avatars) {
+	//     avatars[a].updatePosition();
+	// }
+	// avatar.updatePosition();
+	streamBox[0].head()();
+	streamBox[0] = streamBox[0].tail();
 	stage.update();
     });
 
@@ -148,7 +163,69 @@ function createWebSocket(path) {
     return new Socket(uri);
 }
 
-function onMessage(user, stage, avatars) {
+var MoveStream = function MoveStream(avatar, move) {
+    this.avatar = avatar;
+    this.move = move;
+};
+
+MoveStream.prototype.head = function() {
+    var avatar = this.avatar;
+    var move = this.move;
+
+    return function() {
+	var circle = avatar.shape;
+
+	var currTime = new Date().getTime();
+	if (move.endTime > currTime) {
+	    var newpos = interpolate(move.startPos, move.endPos, move.startTime, move.endTime, currTime);
+	    circle.x = newpos.x;
+	    circle.y = newpos.y;
+	} else {
+	    circle.x = move.endPos.x;
+	    circle.y = move.endPos.y;
+
+	    console.log("arrived.");
+	}
+
+	avatar.updatePosition();
+    }
+}
+
+MoveStream.prototype.tail = function() {
+    if (!this.move) {
+	return null;
+    }
+    var currTime = new Date().getTime();
+    if (this.move.endTime < currTime) {
+	return null;
+    }
+    return new MoveStream(this.avatar, this.move);
+};
+
+var MergedStream = function(s1, s2) {
+    this.stream1 = s1;
+    this.stream2 = s2;
+};
+
+MergedStream.prototype.head = function() {
+    var self = this;
+    return function() {
+	self.stream1.head()();
+	self.stream2.head()();
+    };
+};
+
+MergedStream.prototype.tail = function() {
+    var t1 = this.stream1.tail();
+    var t2 = this.stream2.tail();
+    if (t1 && t2) {
+	return new MergedStream(t1, t2);
+    } else {
+	return t1 || t2;
+    }
+};
+
+function onMessage(user, stage, avatars, streamBox) {
     return function(event) {
 	console.log("onMessage", event);
 	var match = event.data.match(/(.*)?: (.*)$/);
@@ -165,7 +242,8 @@ function onMessage(user, stage, avatars) {
 		var avatar = avatars[who];
 		var move = action.move;
 		if (move) {
-		    avatar.setMove(move.startPos, move.endPos, move.startTime, move.endTime);
+		    // avatar.setMove(move.startPos, move.endPos, move.startTime, move.endTime);
+		    streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move));
 		}
 	    }
 	} else {

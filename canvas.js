@@ -26,6 +26,7 @@ var Avatar = function() {
 
     this.move = null;
     this.shape = circle;
+    this.state = 0;
 }
 
 function interpolate(start, end, startTime, endTime, currTime) {
@@ -40,30 +41,6 @@ var Move = function Move(startPos, endPos, startTime, endTime) {
     this.endPos = endPos;
     this.startTime = startTime;
     this.endTime = endTime;
-}
-
-// Avatar.prototype.setDest = function(x, y) {
-Avatar.prototype.setMove = function(startPos, endPos, startTime, endTime) {
-    this.move = new Move(startPos, endPos, startTime, endTime);
-}
-
-Avatar.prototype.updatePosition = function() {
-    var circle = this.shape;
-
-    var move = this.move;
-    if (move) {
-	var currTime = new Date().getTime();
-	if (move.endTime > currTime) {
-	    var newpos = interpolate(move.startPos, move.endPos, move.startTime, move.endTime, currTime);
-	    circle.x = newpos.x;
-	    circle.y = newpos.y;
-	} else {
-	    circle.x = move.endPos.x;
-	    circle.y = move.endPos.y;
-	    this.move = null;
-	    console.log("arrived.");
-	}
-    }
 }
 
 function makeAvatar() {
@@ -137,16 +114,12 @@ $(document).ready(function() {
 	var move = new Move({x: currX, y: currY},
 			    {x: destX, y: destY},
 			    currTime, endTime);
-	// avatar.move = move;
+
 	ws.send(JSON.stringify({move: move}));
 	streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move));
     });
 
     createjs.Ticker.addEventListener("tick", function(event) {
-	// for (var a in avatars) {
-	//     avatars[a].updatePosition();
-	// }
-	// avatar.updatePosition();
 	streamBox[0].head()();
 	streamBox[0] = streamBox[0].tail();
 	stage.update();
@@ -176,7 +149,9 @@ MoveStream.prototype.head = function() {
 	var circle = avatar.shape;
 
 	var currTime = new Date().getTime();
-	if (move.endTime > currTime) {
+	if (move.startTime > currTime) {
+	    // do nothing
+	} else if (move.endTime > currTime) {
 	    var newpos = interpolate(move.startPos, move.endPos, move.startTime, move.endTime, currTime);
 	    circle.x = newpos.x;
 	    circle.y = newpos.y;
@@ -186,8 +161,6 @@ MoveStream.prototype.head = function() {
 
 	    console.log("arrived.");
 	}
-
-	avatar.updatePosition();
     }
 }
 

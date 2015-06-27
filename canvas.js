@@ -115,8 +115,9 @@ $(document).ready(function() {
 			    {x: destX, y: destY},
 			    currTime, endTime);
 
-	ws.send(JSON.stringify({move: move}));
-	streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move));
+	var state = avatar.state + 1;
+	ws.send(JSON.stringify({move: move, state: state}));
+	streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
     });
 
     createjs.Ticker.addEventListener("tick", function(event) {
@@ -136,20 +137,23 @@ function createWebSocket(path) {
     return new Socket(uri);
 }
 
-var MoveStream = function MoveStream(avatar, move) {
+var MoveStream = function MoveStream(avatar, move, state) {
     this.avatar = avatar;
     this.move = move;
+    this.state = state;
 };
 
 MoveStream.prototype.head = function() {
     var avatar = this.avatar;
     var move = this.move;
+    var state = this.state;
 
     return function() {
 	var circle = avatar.shape;
 
 	var currTime = new Date().getTime();
-	if (move.startTime > currTime) {
+	if (avatar.state > state
+	    || move.startTime > currTime) {
 	    // do nothing
 	} else if (move.endTime > currTime) {
 	    var newpos = interpolate(move.startPos, move.endPos, move.startTime, move.endTime, currTime);
@@ -161,6 +165,11 @@ MoveStream.prototype.head = function() {
 
 	    console.log("arrived.");
 	}
+
+	if (avatar.state < state) {
+	    console.log("state", avatar.state, state);
+	    avatar.state = state;
+	}
     }
 }
 
@@ -168,11 +177,16 @@ MoveStream.prototype.tail = function() {
     if (!this.move) {
 	return null;
     }
+    if (this.avatar.state > this.state) {
+	console.log("previous move canceled");
+	return null;
+    }
+
     var currTime = new Date().getTime();
     if (this.move.endTime < currTime) {
 	return null;
     }
-    return new MoveStream(this.avatar, this.move);
+    return new MoveStream(this.avatar, this.move, this.state);
 };
 
 var MergedStream = function(s1, s2) {
@@ -214,9 +228,10 @@ function onMessage(user, stage, avatars, streamBox) {
 		}
 		var avatar = avatars[who];
 		var move = action.move;
+		var state = action.state;
 		if (move) {
 		    // avatar.setMove(move.startPos, move.endPos, move.startTime, move.endTime);
-		    streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move));
+		    streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
 		}
 	    }
 	} else {

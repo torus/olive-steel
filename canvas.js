@@ -1,4 +1,4 @@
-function init() {
+function makeStage() {
     $("#demoCanvas").attr("style", "border: thin solid black");
     var stage = new createjs.Stage("demoCanvas");
 
@@ -10,14 +10,27 @@ function init() {
     bg.graphics.beginFill("#eee").drawRect(0, 0, stageWidth, stageHeight);
     stage.addChild(bg);
 
+    // var avatar = makeAvatar();
+    // avatar.shape.x = Math.random() * stageWidth;
+    // avatar.shape.y = Math.random() * stageHeight;
+    // stage.addChild(avatar.shape);
+
+    // stage.update();
+
+    return stage;
+    // return [stage, avatar];
+}
+
+function putLocalAvatar(stage) {
+    var stageWidth = stage.canvas.width;
+    var stageHeight = stage.canvas.height;
+
     var avatar = makeAvatar();
     avatar.shape.x = Math.random() * stageWidth;
     avatar.shape.y = Math.random() * stageHeight;
     stage.addChild(avatar.shape);
 
-    stage.update();
-
-    return [stage, avatar];
+    return avatar;
 }
 
 var Avatar = function() {
@@ -58,9 +71,11 @@ NoopStream.prototype.tail = function tail() {
 };
 
 $(document).ready(function() {
-    var res = init();
-    var stage = res[0];
-    var avatar = res[1];
+    // var res = init();
+    // var stage = res[0];
+    // var avatar = res[1];
+    var stage = makeStage();
+    var avatar = putLocalAvatar(stage);
 
     var avatars = {};
 

@@ -219,35 +219,32 @@ function onMessage(user, stage, avatars, streamBox) {
 	var match = event.data.match(/(.*)?: (.*)$/);
 	if (match) {
 	    var who = match[1];
-	    // if (who != user) {
-		var action = JSON.parse(match[2]);
-		console.log(who, action);
-		var avatarId = action.avatar
-		if (avatarId) {
-		    if (!avatars[avatarId]) {
-			console.warn("avatar " + avatarId + " does not exist. spawning...");
-			var av = avatars[avatarId] = makeAvatar();
-			stage.addChild(av.shape);
-		    }
-		    var avatar = avatars[avatarId];
-		    var move = action.move;
-		    var state = action.state;
-		    if (move) {
-			// avatar.setMove(move.startPos, move.endPos, move.startTime, move.endTime);
-			streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
-		    }
+	    var action = JSON.parse(match[2]);
+	    console.log(who, action);
+	    var avatarId = action.avatar
+	    if (avatarId) {
+		if (!avatars[avatarId]) {
+		    console.warn("avatar " + avatarId + " does not exist. spawning...");
+		    var av = avatars[avatarId] = makeAvatar();
+		    stage.addChild(av.shape);
 		}
-	    // }
+		var avatar = avatars[avatarId];
+		var move = action.move;
+		var state = action.state;
+		if (move) {
+		    streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
+		}
+	    }
 	} else {
 	    var join = event.data.match(/(.*) (joined|disconnected)$/);
 	    console.log(join[1] + " " + join[2]);
-	    // if (join[2] == "disconnected") {
-	    // 	var av = avatars[join[1]];
-	    // 	if (av) {
-	    // 	    stage.removeChild(av.shape);
-	    // 	    delete avatars[join[1]];
-	    // 	}
-	    // }
+	    if (join[2] == "disconnected") {
+	    	var av = avatars[join[1]];
+	    	if (av) {
+	    	    stage.removeChild(av.shape);
+	    	    delete avatars[join[1]];
+	    	}
+	    }
 	}
     }
 }

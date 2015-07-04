@@ -62,24 +62,32 @@ NoopStream.prototype.tail = function tail() {
     return new NoopStream;
 };
 
-$(document).ready(function() {
-    var stage = makeStage();
-    var avatar = putLocalAvatar(stage);
+function onClick(user, avatar, ws) {
+    return function(event) {
+    	console.log([event.rawX, event.rawY]);
+    	destX = event.rawX;
+    	destY = event.rawY;
 
-    var avatars = {};
+    	var currX = avatar.shape.x;
+    	var currY = avatar.shape.y;
+    	var currTime = new Date().getTime();
+    	var dist = Math.sqrt((destX - currX) * (destX - currX) + (destY - currY) * (destY - currY));
+    	var endTime = currTime + (dist * 10 | 0);
 
-    var user = "client" + (Math.random() * 100000 | 0);
-    console.log("user", user);
-    avatars[user] = avatar;
-    var ws = createWebSocket('/');
+    	console.log(currX, currY, destX, destY, currTime, dist, endTime);
 
-    ws.onopen = function() {
-        ws.send('Hi! I am ' + user);
+    	var move = new Move({x: currX, y: currY},
+    			    {x: destX, y: destY},
+    			    currTime, endTime);
+
+    	var state = avatar.state + 1;
+    	ws.send(JSON.stringify({move: move, state: state, avatar: user}));
     };
+}
 
-    var streamBox = [new NoopStream];
-
-    ws.onmessage = function(event) {
+function onFirstMessage(stage, avatars, user, streamBox) {
+    return function(event) {
+	var ws = this;
 	console.log(event);
         if(event.data.match('^Welcome! Users: ')) {
             /* Calculate the list of initial users */
@@ -100,29 +108,30 @@ $(document).ready(function() {
             ws.close();
         }
     };
+}
+
+$(document).ready(function() {
+    var stage = makeStage();
+    var avatar = putLocalAvatar(stage);
+
+    var avatars = {};
+
+    var user = "client" + (Math.random() * 100000 | 0);
+    console.log("user", user);
+    avatars[user] = avatar;
+    var ws = createWebSocket('/');
+
+    ws.onopen = function() {
+        ws.send('Hi! I am ' + user);
+    };
+
+    var streamBox = [new NoopStream];
+
+    ws.onmessage = onFirstMessage(stage, avatars, user, streamBox);
 
     var destX = avatar.shape.x;
     var destY = avatar.shape.y;
-    stage.addEventListener("click", function(event) {
-	console.log([event.rawX, event.rawY]);
-	destX = event.rawX;
-	destY = event.rawY;
-
-	var currX = avatar.shape.x;
-	var currY = avatar.shape.y;
-	var currTime = new Date().getTime();
-	var dist = Math.sqrt((destX - currX) * (destX - currX) + (destY - currY) * (destY - currY));
-	var endTime = currTime + (dist * 10 | 0);
-
-	console.log(currX, currY, destX, destY, currTime, dist, endTime);
-
-	var move = new Move({x: currX, y: currY},
-			    {x: destX, y: destY},
-			    currTime, endTime);
-
-	var state = avatar.state + 1;
-	ws.send(JSON.stringify({move: move, state: state, avatar: user}));
-    });
+    stage.addEventListener("click", onClick(user, avatar, ws));
 
     createjs.Ticker.addEventListener("tick", function(event) {
 	streamBox[0].head()();

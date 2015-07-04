@@ -66,6 +66,7 @@ $(document).ready(function() {
 
     var user = "client" + (Math.random() * 100000 | 0);
     console.log("user", user);
+    avatars[user] = avatar;
     var ws = createWebSocket('/');
 
     ws.onopen = function() {
@@ -116,8 +117,8 @@ $(document).ready(function() {
 			    currTime, endTime);
 
 	var state = avatar.state + 1;
-	ws.send(JSON.stringify({move: move, state: state}));
-	streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
+	ws.send(JSON.stringify({move: move, state: state, avatar: user}));
+	// streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
     });
 
     createjs.Ticker.addEventListener("tick", function(event) {
@@ -218,32 +219,35 @@ function onMessage(user, stage, avatars, streamBox) {
 	var match = event.data.match(/(.*)?: (.*)$/);
 	if (match) {
 	    var who = match[1];
-	    if (who != user) {
+	    // if (who != user) {
 		var action = JSON.parse(match[2]);
 		console.log(who, action);
-		if (!avatars[who]) {
-		    console.warn("avatar " + who + " does not exist. spawning...");
-		    var av = avatars[who] = makeAvatar();
-		    stage.addChild(av.shape);
+		var avatarId = action.avatar
+		if (avatarId) {
+		    if (!avatars[avatarId]) {
+			console.warn("avatar " + avatarId + " does not exist. spawning...");
+			var av = avatars[avatarId] = makeAvatar();
+			stage.addChild(av.shape);
+		    }
+		    var avatar = avatars[avatarId];
+		    var move = action.move;
+		    var state = action.state;
+		    if (move) {
+			// avatar.setMove(move.startPos, move.endPos, move.startTime, move.endTime);
+			streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
+		    }
 		}
-		var avatar = avatars[who];
-		var move = action.move;
-		var state = action.state;
-		if (move) {
-		    // avatar.setMove(move.startPos, move.endPos, move.startTime, move.endTime);
-		    streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
-		}
-	    }
+	    // }
 	} else {
 	    var join = event.data.match(/(.*) (joined|disconnected)$/);
 	    console.log(join[1] + " " + join[2]);
-	    if (join[2] == "disconnected") {
-		var av = avatars[join[1]];
-		if (av) {
-		    stage.removeChild(av.shape);
-		    delete avatars[join[1]];
-		}
-	    }
+	    // if (join[2] == "disconnected") {
+	    // 	var av = avatars[join[1]];
+	    // 	if (av) {
+	    // 	    stage.removeChild(av.shape);
+	    // 	    delete avatars[join[1]];
+	    // 	}
+	    // }
 	}
     }
 }

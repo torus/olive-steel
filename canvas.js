@@ -10,15 +10,7 @@ function makeStage() {
     bg.graphics.beginFill("#eee").drawRect(0, 0, stageWidth, stageHeight);
     stage.addChild(bg);
 
-    // var avatar = makeAvatar();
-    // avatar.shape.x = Math.random() * stageWidth;
-    // avatar.shape.y = Math.random() * stageHeight;
-    // stage.addChild(avatar.shape);
-
-    // stage.update();
-
     return stage;
-    // return [stage, avatar];
 }
 
 function putLocalAvatar(stage) {
@@ -71,9 +63,6 @@ NoopStream.prototype.tail = function tail() {
 };
 
 $(document).ready(function() {
-    // var res = init();
-    // var stage = res[0];
-    // var avatar = res[1];
     var stage = makeStage();
     var avatar = putLocalAvatar(stage);
 
@@ -133,7 +122,6 @@ $(document).ready(function() {
 
 	var state = avatar.state + 1;
 	ws.send(JSON.stringify({move: move, state: state, avatar: user}));
-	// streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
     });
 
     createjs.Ticker.addEventListener("tick", function(event) {

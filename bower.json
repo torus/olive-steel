@@ -1,0 +1,21 @@
+{
+  "name": "olive-steel",
+  "version": "0.0.0",
+  "homepage": "https://github.com/torus/olive-steel",
+  "authors": [
+    "Toru Hisai <toru@torus.jp>"
+  ],
+  "description": "multiplayer game",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "EaselJS": "~0.8.1",
+    "victor": "~0.2.6"
+  }
+}

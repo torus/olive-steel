@@ -64,42 +64,42 @@ NoopStream.prototype.tail = function tail() {
 
 function onClick(user, avatar, ws) {
     return function(event) {
-    	console.log([event.rawX, event.rawY]);
-    	destX = event.rawX;
-    	destY = event.rawY;
+        console.log([event.rawX, event.rawY]);
+        destX = event.rawX;
+        destY = event.rawY;
 
-    	var currX = avatar.shape.x;
-    	var currY = avatar.shape.y;
-    	var currTime = new Date().getTime();
-    	var dist = Math.sqrt((destX - currX) * (destX - currX) + (destY - currY) * (destY - currY));
-    	var endTime = currTime + (dist * 10 | 0);
+        var currX = avatar.shape.x;
+        var currY = avatar.shape.y;
+        var currTime = new Date().getTime();
+        var dist = Math.sqrt((destX - currX) * (destX - currX) + (destY - currY) * (destY - currY));
+        var endTime = currTime + (dist * 10 | 0);
 
-    	console.log(currX, currY, destX, destY, currTime, dist, endTime);
+        console.log(currX, currY, destX, destY, currTime, dist, endTime);
 
-    	var move = new Move({x: currX, y: currY},
-    			    {x: destX, y: destY},
-    			    currTime, endTime);
+        var move = new Move({x: currX, y: currY},
+                            {x: destX, y: destY},
+                            currTime, endTime);
 
-    	var state = avatar.state + 1;
-    	ws.send(JSON.stringify({move: move, state: state, avatar: user}));
+        var state = avatar.state + 1;
+        ws.send(JSON.stringify({move: move, state: state, avatar: user}));
     };
 }
 
 function onFirstMessage(stage, avatars, user, streamBox) {
     return function(event) {
-	var ws = this;
-	console.log(event);
+        var ws = this;
+        console.log(event);
         if(event.data.match('^Welcome! Users: ')) {
             /* Calculate the list of initial users */
             var str = event.data.replace(/^Welcome! Users: /, '');
             if(str != "") {
-		var names = str.split(", ");
+                var names = str.split(", ");
                 for (var idx in names) {
-		    var name = names[idx];
-		    var av = avatars[name] = makeAvatar();
-		    stage.addChild(av.shape);
-		    console.log("avatar spawned", name)
-		}
+                    var name = names[idx];
+                    var av = avatars[name] = makeAvatar();
+                    stage.addChild(av.shape);
+                    console.log("avatar spawned", name)
+                }
             }
 
             ws.onmessage = onMessage(user, stage, avatars, streamBox);
@@ -123,35 +123,35 @@ function vecSub(v1, v2) {
 function updateBoids(boids, avatar) {
     var prob = createjs.Ticker.interval / 1000; // roughly once a second
     boids.concat([avatar]).forEach(function(b, i) {
-	if (Math.random() < prob) {
-	    // console.log('updateBoids', i);
-	    var localFlockmates = boids.filter(function(b2) {
-		return b != b2 && distSquare(b.shape, b2.shape) < 100000;
-	    });
-	    var sumPos = localFlockmates.reduce(function(s, b2) {
-		s.x += b2.x;
-		s.y += b2.y;
-		return s;
-	    }, {x: 0, y: 0});
-	    var cohesion = {
-		x: sumPos.x / localFlockmates.length - b.shape.x,
-		y: sumPos.y / localFlockmates.length - b.shape.y
-	    };
-	    var separation = localFlockmates.reduce(function(s, b2) {
-		var dd = distSquare(b.shape, b2.shape);
-		var vec = vecSub(b2.shape, b.shape);
-		if (!vec) {
-		    console.log(b2.shape, b.shape);
-		} else {
-		    s.x += vec.x / dd;
-		    s.y += vec.y / dd;
-		}
-		return s;
-	    }, {x: 0, y: 0});
-	    var alignment = localFlockmates.reduce(function(s, b2) {
-		
-	    }, {x: 0, y: 0});
-	}
+        if (Math.random() < prob) {
+            // console.log('updateBoids', i);
+            var localFlockmates = boids.filter(function(b2) {
+                return b != b2 && distSquare(b.shape, b2.shape) < 100000;
+            });
+            var sumPos = localFlockmates.reduce(function(s, b2) {
+                s.x += b2.x;
+                s.y += b2.y;
+                return s;
+            }, {x: 0, y: 0});
+            var cohesion = {
+                x: sumPos.x / localFlockmates.length - b.shape.x,
+                y: sumPos.y / localFlockmates.length - b.shape.y
+            };
+            var separation = localFlockmates.reduce(function(s, b2) {
+                var dd = distSquare(b.shape, b2.shape);
+                var vec = vecSub(b2.shape, b.shape);
+                if (!vec) {
+                    console.log(b2.shape, b.shape);
+                } else {
+                    s.x += vec.x / dd;
+                    s.y += vec.y / dd;
+                }
+                return s;
+            }, {x: 0, y: 0});
+            var alignment = localFlockmates.reduce(function(s, b2) {
+                
+            }, {x: 0, y: 0});
+        }
     });
 }
 
@@ -166,15 +166,15 @@ $(document).ready(function() {
     avatars[user] = avatar;
 
     var boids = (function(){
-	for(var arr = []; arr.length < 10; arr.push(putLocalAvatar(stage))) ;
-	return arr;
+        for(var arr = []; arr.length < 10; arr.push(putLocalAvatar(stage))) ;
+        return arr;
     })();
     var boidName = function(i) {
-	return user + "-" + i;
+        return user + "-" + i;
     };
     boids.forEach(function(b, i) {
-	var name = boidName(i);
-	avatars[name] = b;
+        var name = boidName(i);
+        avatars[name] = b;
     });
 
     var ws = createWebSocket('/');
@@ -192,10 +192,10 @@ $(document).ready(function() {
     stage.addEventListener("click", onClick(user, avatar, ws));
 
     createjs.Ticker.addEventListener("tick", function(event) {
-	streamBox[0].head()();
-	streamBox[0] = streamBox[0].tail();
-	updateBoids(boids, avatar);
-	stage.update();
+        streamBox[0].head()();
+        streamBox[0] = streamBox[0].tail();
+        updateBoids(boids, avatar);
+        stage.update();
     });
 });
 
@@ -220,42 +220,42 @@ MoveStream.prototype.head = function() {
     var state = this.state;
 
     return function() {
-	var circle = avatar.shape;
+        var circle = avatar.shape;
 
-	var currTime = new Date().getTime();
-	if (avatar.state > state
-	    || move.startTime > currTime) {
-	    // do nothing
-	} else if (move.endTime > currTime) {
-	    var newpos = interpolate(move.startPos, move.endPos, move.startTime, move.endTime, currTime);
-	    circle.x = newpos.x;
-	    circle.y = newpos.y;
-	} else {
-	    circle.x = move.endPos.x;
-	    circle.y = move.endPos.y;
+        var currTime = new Date().getTime();
+        if (avatar.state > state
+            || move.startTime > currTime) {
+            // do nothing
+        } else if (move.endTime > currTime) {
+            var newpos = interpolate(move.startPos, move.endPos, move.startTime, move.endTime, currTime);
+            circle.x = newpos.x;
+            circle.y = newpos.y;
+        } else {
+            circle.x = move.endPos.x;
+            circle.y = move.endPos.y;
 
-	    console.log("arrived.");
-	}
+            console.log("arrived.");
+        }
 
-	if (avatar.state < state) {
-	    console.log("state", avatar.state, state);
-	    avatar.state = state;
-	}
+        if (avatar.state < state) {
+            console.log("state", avatar.state, state);
+            avatar.state = state;
+        }
     }
 }
 
 MoveStream.prototype.tail = function() {
     if (!this.move) {
-	return null;
+        return null;
     }
     if (this.avatar.state > this.state) {
-	console.log("previous move canceled");
-	return null;
+        console.log("previous move canceled");
+        return null;
     }
 
     var currTime = new Date().getTime();
     if (this.move.endTime < currTime) {
-	return null;
+        return null;
     }
     return new MoveStream(this.avatar, this.move, this.state);
 };
@@ -268,8 +268,8 @@ var MergedStream = function(s1, s2) {
 MergedStream.prototype.head = function() {
     var self = this;
     return function() {
-	self.stream1.head()();
-	self.stream2.head()();
+        self.stream1.head()();
+        self.stream2.head()();
     };
 };
 
@@ -277,44 +277,44 @@ MergedStream.prototype.tail = function() {
     var t1 = this.stream1.tail();
     var t2 = this.stream2.tail();
     if (t1 && t2) {
-	return new MergedStream(t1, t2);
+        return new MergedStream(t1, t2);
     } else {
-	return t1 || t2;
+        return t1 || t2;
     }
 };
 
 function onMessage(user, stage, avatars, streamBox) {
     return function(event) {
-	console.log("onMessage", event);
-	var match = event.data.match(/(.*)?: (.*)$/);
-	if (match) {
-	    var who = match[1];
-	    var action = JSON.parse(match[2]);
-	    console.log(who, action);
-	    var avatarId = action.avatar
-	    if (avatarId) {
-		if (!avatars[avatarId]) {
-		    console.warn("avatar " + avatarId + " does not exist. spawning...");
-		    var av = avatars[avatarId] = makeAvatar();
-		    stage.addChild(av.shape);
-		}
-		var avatar = avatars[avatarId];
-		var move = action.move;
-		var state = action.state;
-		if (move) {
-		    streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
-		}
-	    }
-	} else {
-	    var join = event.data.match(/(.*) (joined|disconnected)$/);
-	    console.log(join[1] + " " + join[2]);
-	    if (join[2] == "disconnected") {
-	    	var av = avatars[join[1]];
-	    	if (av) {
-	    	    stage.removeChild(av.shape);
-	    	    delete avatars[join[1]];
-	    	}
-	    }
-	}
+        console.log("onMessage", event);
+        var match = event.data.match(/(.*)?: (.*)$/);
+        if (match) {
+            var who = match[1];
+            var action = JSON.parse(match[2]);
+            console.log(who, action);
+            var avatarId = action.avatar
+            if (avatarId) {
+                if (!avatars[avatarId]) {
+                    console.warn("avatar " + avatarId + " does not exist. spawning...");
+                    var av = avatars[avatarId] = makeAvatar();
+                    stage.addChild(av.shape);
+                }
+                var avatar = avatars[avatarId];
+                var move = action.move;
+                var state = action.state;
+                if (move) {
+                    streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
+                }
+            }
+        } else {
+            var join = event.data.match(/(.*) (joined|disconnected)$/);
+            console.log(join[1] + " " + join[2]);
+            if (join[2] == "disconnected") {
+                var av = avatars[join[1]];
+                if (av) {
+                    stage.removeChild(av.shape);
+                    delete avatars[join[1]];
+                }
+            }
+        }
     }
 }

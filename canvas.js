@@ -110,6 +110,51 @@ function onFirstMessage(stage, avatars, user, streamBox) {
     };
 }
 
+function distSquare(v1, v2) {
+    var dx = v1.x - v2.x;
+    var dy = v1.y - v2.y;
+    return dx * dx + dy * dy;
+}
+
+function vecSub(v1, v2) {
+    return {x: v1.x - v2.x, y: v1.y - v2.y}
+}
+
+function updateBoids(boids, avatar) {
+    var prob = createjs.Ticker.interval / 1000; // roughly once a second
+    boids.concat([avatar]).forEach(function(b, i) {
+	if (Math.random() < prob) {
+	    // console.log('updateBoids', i);
+	    var localFlockmates = boids.filter(function(b2) {
+		return b != b2 && distSquare(b.shape, b2.shape) < 100000;
+	    });
+	    var sumPos = localFlockmates.reduce(function(s, b2) {
+		s.x += b2.x;
+		s.y += b2.y;
+		return s;
+	    }, {x: 0, y: 0});
+	    var cohesion = {
+		x: sumPos.x / localFlockmates.length - b.shape.x,
+		y: sumPos.y / localFlockmates.length - b.shape.y
+	    };
+	    var separation = localFlockmates.reduce(function(s, b2) {
+		var dd = distSquare(b.shape, b2.shape);
+		var vec = vecSub(b2.shape, b.shape);
+		if (!vec) {
+		    console.log(b2.shape, b.shape);
+		} else {
+		    s.x += vec.x / dd;
+		    s.y += vec.y / dd;
+		}
+		return s;
+	    }, {x: 0, y: 0});
+	    var alignment = localFlockmates.reduce(function(s, b2) {
+		
+	    }, {x: 0, y: 0});
+	}
+    });
+}
+
 $(document).ready(function() {
     var stage = makeStage();
     var avatar = putLocalAvatar(stage);
@@ -119,6 +164,19 @@ $(document).ready(function() {
     var user = "client" + (Math.random() * 100000 | 0);
     console.log("user", user);
     avatars[user] = avatar;
+
+    var boids = (function(){
+	for(var arr = []; arr.length < 10; arr.push(putLocalAvatar(stage))) ;
+	return arr;
+    })();
+    var boidName = function(i) {
+	return user + "-" + i;
+    };
+    boids.forEach(function(b, i) {
+	var name = boidName(i);
+	avatars[name] = b;
+    });
+
     var ws = createWebSocket('/');
 
     ws.onopen = function() {
@@ -136,9 +194,9 @@ $(document).ready(function() {
     createjs.Ticker.addEventListener("tick", function(event) {
 	streamBox[0].head()();
 	streamBox[0] = streamBox[0].tail();
+	updateBoids(boids, avatar);
 	stage.update();
     });
-
 });
 
 function createWebSocket(path) {

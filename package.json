@@ -1,0 +1,23 @@
+{
+  "name": "olive-steel",
+  "version": "1.0.0",
+  "description": "multiplayer online game",
+  "main": "",
+  "dependencies": {
+    "bower": "^1.4.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/torus/olive-steel.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/torus/olive-steel/issues"
+  },
+  "homepage": "https://github.com/torus/olive-steel#readme"
+}

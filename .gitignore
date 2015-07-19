@@ -2,3 +2,5 @@
 *.hi
 *~
 server
+bower_components/
+node_modules/

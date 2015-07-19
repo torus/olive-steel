@@ -68,24 +68,15 @@ NoopStream.prototype.tail = function tail() {
 function onClick(user, avatar, ws) {
     return function(event) {
         console.log([event.rawX, event.rawY]);
-        // destX = event.rawX;
-        // destY = event.rawY;
 	var destPos = new b2Vec2(event.rawX, event.rawY);
 	var currPos = new b2Vec2(avatar.shape.x, avatar.shape.y);
-        // var currX = avatar.shape.x;
-        // var currY = avatar.shape.y;
         var currTime = new Date().getTime();
-        // var dist = Math.sqrt((destX - currX) * (destX - currX) + (destY - currY) * (destY - currY));
 	var dist = destPos.clone().sub(currPos).Length();
         var endTime = currTime + (dist * 10 | 0);
 
         console.log(currPos, destPos, currTime, dist, endTime);
-        // console.log(currX, currY, destX, destY, currTime, dist, endTime);
 
         var move = new Move(currPos, destPos, currTime, endTime);
-        // var move = new Move({x: currX, y: currY},
-        //                     {x: destX, y: destY},
-        //                     currTime, endTime);
 
         var state = avatar.state + 1;
         ws.send(JSON.stringify({move: move, state: state, avatar: user}));
@@ -116,16 +107,6 @@ function onFirstMessage(stage, avatars, user, streamBox) {
         }
     };
 }
-
-// function distSquare(v1, v2) {
-//     var dx = v1.x - v2.x;
-//     var dy = v1.y - v2.y;
-//     return dx * dx + dy * dy;
-// }
-
-// function vecSub(v1, v2) {
-//     return {x: v1.x - v2.x, y: v1.y - v2.y}
-// }
 
 b2Vec2.prototype.toJSON = function() {
     return {x: this.get_x(), y: this.get_y()};

@@ -17,6 +17,7 @@
   "dependencies": {
     "EaselJS": "~0.8.1",
     "victor": "~0.2.6",
-    "jquery": "~2.1.4"
+    "jquery": "~2.1.4",
+    "box2d": "*"
   }
 }

@@ -31,6 +31,7 @@ var Avatar = function() {
 
     this.move = null;
     this.shape = circle;
+    this.heading = new b2Vec2(0, 0);
     this.state = 0;
 }
 
@@ -38,7 +39,9 @@ function interpolate(start, end, startTime, endTime, currTime) {
     var d = endTime - startTime;
     var a = endTime - currTime;
     var b = currTime - startTime;
-    return {x: (a * start.x + b * end.x) / d, y: (a * start.y + b * end.y) / d};
+
+    return start.clone().mix(end, a / d);
+    // return {x: (a * start.x + b * end.x) / d, y: (a * start.y + b * end.y) / d};
 }
 
 var Move = function Move(startPos, endPos, startTime, endTime) {
@@ -65,20 +68,24 @@ NoopStream.prototype.tail = function tail() {
 function onClick(user, avatar, ws) {
     return function(event) {
         console.log([event.rawX, event.rawY]);
-        destX = event.rawX;
-        destY = event.rawY;
-
-        var currX = avatar.shape.x;
-        var currY = avatar.shape.y;
+        // destX = event.rawX;
+        // destY = event.rawY;
+	var destPos = new b2Vec2(event.rawX, event.rawY);
+	var currPos = new b2Vec2(avatar.shape.x, avatar.shape.y);
+        // var currX = avatar.shape.x;
+        // var currY = avatar.shape.y;
         var currTime = new Date().getTime();
-        var dist = Math.sqrt((destX - currX) * (destX - currX) + (destY - currY) * (destY - currY));
+        // var dist = Math.sqrt((destX - currX) * (destX - currX) + (destY - currY) * (destY - currY));
+	var dist = destPos.clone().sub(currPos).Length();
         var endTime = currTime + (dist * 10 | 0);
 
-        console.log(currX, currY, destX, destY, currTime, dist, endTime);
+        console.log(currPos, destPos, currTime, dist, endTime);
+        // console.log(currX, currY, destX, destY, currTime, dist, endTime);
 
-        var move = new Move({x: currX, y: currY},
-                            {x: destX, y: destY},
-                            currTime, endTime);
+        var move = new Move(currPos, destPos, currTime, endTime);
+        // var move = new Move({x: currX, y: currY},
+        //                     {x: destX, y: destY},
+        //                     currTime, endTime);
 
         var state = avatar.state + 1;
         ws.send(JSON.stringify({move: move, state: state, avatar: user}));
@@ -110,47 +117,73 @@ function onFirstMessage(stage, avatars, user, streamBox) {
     };
 }
 
-function distSquare(v1, v2) {
-    var dx = v1.x - v2.x;
-    var dy = v1.y - v2.y;
-    return dx * dx + dy * dy;
-}
+// function distSquare(v1, v2) {
+//     var dx = v1.x - v2.x;
+//     var dy = v1.y - v2.y;
+//     return dx * dx + dy * dy;
+// }
 
-function vecSub(v1, v2) {
-    return {x: v1.x - v2.x, y: v1.y - v2.y}
-}
+// function vecSub(v1, v2) {
+//     return {x: v1.x - v2.x, y: v1.y - v2.y}
+// }
+
+b2Vec2.prototype.toJSON = function() {
+    return {x: this.get_x(), y: this.get_y()};
+};
+
+b2Vec2.prototype.clone = function() {
+    return new b2Vec2(this.get_x(), this.get_y());
+};
+
+b2Vec2.prototype.sub = function(v) {
+    this.set_x(this.get_x() - v.get_x());
+    this.set_y(this.get_y() - v.get_y());
+    return this;
+};
+
+b2Vec2.prototype.mul = function(f) {
+    this.set_x(this.get_x() * f);
+    this.set_y(this.get_y() * f);
+    return this;
+};
+
+b2Vec2.prototype.mix = function(v, r) {
+    this.set_x(this.get_x() * r + v.get_x() * (1 - r));
+    this.set_y(this.get_y() * r + v.get_y() * (1 - r));
+    return this;
+};
 
 function updateBoids(boids, avatar) {
     var prob = createjs.Ticker.interval / 1000; // roughly once a second
     boids.concat([avatar]).forEach(function(b, i) {
         if (Math.random() < prob) {
             // console.log('updateBoids', i);
+	    var boidPos = new b2Vec2(b.shape.x, b.shape.y);
             var localFlockmates = boids.filter(function(b2) {
-                return b != b2 && distSquare(b.shape, b2.shape) < 100000;
+                return b != b2 && boidPos.LengthSquared(new b2Vec2(b2.shape.x, b2.shape.y)) < 100000;
             });
-            var sumPos = localFlockmates.reduce(function(s, b2) {
-                s.x += b2.x;
-                s.y += b2.y;
+	    var num = localFlockmates.length;
+            var cohesion = localFlockmates.reduce(function(s, b2) {
+		s.op_add(new b2Vec2(b2.shape.x, b2.shape.y));
                 return s;
-            }, {x: 0, y: 0});
-            var cohesion = {
-                x: sumPos.x / localFlockmates.length - b.shape.x,
-                y: sumPos.y / localFlockmates.length - b.shape.y
-            };
+            }, new b2Vec2(0, 0)).mul(1 / num).sub(boidPos);
+
             var separation = localFlockmates.reduce(function(s, b2) {
-                var dd = distSquare(b.shape, b2.shape);
-                var vec = vecSub(b2.shape, b.shape);
-                if (!vec) {
-                    console.log(b2.shape, b.shape);
-                } else {
-                    s.x += vec.x / dd;
-                    s.y += vec.y / dd;
-                }
-                return s;
-            }, {x: 0, y: 0});
+		try {
+		    var b2Pos = new b2Vec2(b2.shape.x, b2.shape.y);
+                    var dd = boidPos.clone().sub(b2Pos).LengthSquared();
+                    var vec = b2Pos.clone().sub(boidPos).mul(1 / dd);
+                    s.op_add(vec);
+		    return s;
+		} catch(e) {
+		    console.log({boidPos: boidPos, b2Pos: b2Pos, dd: dd, vec: vec, s: s, b2: b2});
+		    createjs.Ticker.removeAllEventListeners();
+		    console.log('stopped', e);
+		}
+            }, new b2Vec2(0, 0));
             var alignment = localFlockmates.reduce(function(s, b2) {
                 
-            }, {x: 0, y: 0});
+            }, new b2Vec2(0, 0));
         }
     });
 }
@@ -228,11 +261,11 @@ MoveStream.prototype.head = function() {
             // do nothing
         } else if (move.endTime > currTime) {
             var newpos = interpolate(move.startPos, move.endPos, move.startTime, move.endTime, currTime);
-            circle.x = newpos.x;
-            circle.y = newpos.y;
+            circle.x = newpos.get_x();
+            circle.y = newpos.get_y();
         } else {
-            circle.x = move.endPos.x;
-            circle.y = move.endPos.y;
+            circle.x = move.endPos.get_x();
+            circle.y = move.endPos.get_y();
 
             console.log("arrived.");
         }
@@ -302,7 +335,10 @@ function onMessage(user, stage, avatars, streamBox) {
                 var move = action.move;
                 var state = action.state;
                 if (move) {
-                    streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, move, state));
+		    var m = new Move(new b2Vec2(move.startPos.x, move.startPos.y),
+				     new b2Vec2(move.endPos.x, move.endPos.y),
+				     move.startTime, move.endTime);
+                    streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, m, state));
                 }
             }
         } else {

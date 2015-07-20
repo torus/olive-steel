@@ -27,7 +27,7 @@ function putLocalAvatar(stage) {
 
 var Avatar = function() {
     var circle = new createjs.Shape();
-    circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 20);
+    circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 5);
 
     this.move = null;
     this.shape = circle;
@@ -140,13 +140,14 @@ b2Vec2.prototype.mix = function(v, r) {
 
 function updateBoids(boids, avatar, ws) {
     var prob = createjs.Ticker.interval / 1000; // roughly once a second
-    boids.concat([avatar]).forEach(function(b, i) {
+    var leaderPos = new b2Vec2(avatar.shape.x, avatar.shape.y);
+    boids.forEach(function(b, i) {
         if (Math.random() < prob) {
             // console.log('updateBoids', i);
 	    var boidPos = new b2Vec2(b.shape.x, b.shape.y);
             var localFlockmates = boids.filter(function(b2) {
                 return b != b2 && boidPos.clone().sub(new b2Vec2(b2.shape.x, b2.shape.y))
-		    .LengthSquared() < 100000;
+		    .LengthSquared() < 1000000;
             });
 	    var num = localFlockmates.length;
 	    if (num > 0) {
@@ -154,6 +155,8 @@ function updateBoids(boids, avatar, ws) {
 		    s.op_add(new b2Vec2(b2.shape.x, b2.shape.y));
                     return s;
 		}, new b2Vec2(0, 0)).mul(1 / num).sub(boidPos);
+
+		cohesion.add(leaderPos.clone().sub(boidPos).mul(10)).mul(0.01);
 
 		var separation = localFlockmates.reduce(function(s, b2) {
 		    try {
@@ -167,7 +170,8 @@ function updateBoids(boids, avatar, ws) {
 			createjs.Ticker.removeAllEventListeners();
 			console.error('stopped', e);
 		    }
-		}, new b2Vec2(0, 0));
+		}, new b2Vec2(0, 0)).mul(1000);
+
 		var alignment = localFlockmates.reduce(function(s, b2) {
 		    var b2Pos = new b2Vec2(b2.shape.x, b2.shape.y);
 		    var move = b2.move;
@@ -181,12 +185,13 @@ function updateBoids(boids, avatar, ws) {
 		    alignment.sub(b.move.endPos.clone().sub(b.move.startPos)
 				  .mul(1 / b.move.endTime - b.move.startTime));
 		}
+		alignment.mul(1000);
 
-		var heading = cohesion.mul(1).add(separation.mul(100)).add(alignment.mul(1)).mul(100);
+		var heading = cohesion.add(separation).add(alignment).mul(100);
 		// console.log(heading.toJSON());
 		// console.log(cohesion.toJSON(), separation.toJSON(), alignment.toJSON());
 		var newDestPos = boidPos.clone().add(heading);
-		var duration = heading.Length() * 10 | 0;
+		var duration = heading.Length() * 50 | 0;
 		var currTime = new Date().getTime();
 		var move = new Move(boidPos, newDestPos, currTime, currTime + duration);
 		var state = b.state + 1;
@@ -276,7 +281,7 @@ MoveStream.prototype.head = function() {
             circle.x = move.endPos.get_x();
             circle.y = move.endPos.get_y();
 
-            console.log("arrived.");
+            // console.log("arrived.");
         }
 
         if (avatar.state < state) {

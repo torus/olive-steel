@@ -31,7 +31,6 @@ var Avatar = function() {
 
     this.move = null;
     this.shape = circle;
-    this.heading = new b2Vec2(0, 0);
     this.state = 0;
 }
 
@@ -122,6 +121,11 @@ b2Vec2.prototype.sub = function(v) {
     return this;
 };
 
+b2Vec2.prototype.add = function(v) {
+    this.op_add(v);
+    return this;
+};
+
 b2Vec2.prototype.mul = function(f) {
     this.set_x(this.get_x() * f);
     this.set_y(this.get_y() * f);
@@ -134,37 +138,60 @@ b2Vec2.prototype.mix = function(v, r) {
     return this;
 };
 
-function updateBoids(boids, avatar) {
+function updateBoids(boids, avatar, ws) {
     var prob = createjs.Ticker.interval / 1000; // roughly once a second
     boids.concat([avatar]).forEach(function(b, i) {
         if (Math.random() < prob) {
             // console.log('updateBoids', i);
 	    var boidPos = new b2Vec2(b.shape.x, b.shape.y);
             var localFlockmates = boids.filter(function(b2) {
-                return b != b2 && boidPos.LengthSquared(new b2Vec2(b2.shape.x, b2.shape.y)) < 100000;
+                return b != b2 && boidPos.clone().sub(new b2Vec2(b2.shape.x, b2.shape.y))
+		    .LengthSquared() < 100000;
             });
 	    var num = localFlockmates.length;
-            var cohesion = localFlockmates.reduce(function(s, b2) {
-		s.op_add(new b2Vec2(b2.shape.x, b2.shape.y));
-                return s;
-            }, new b2Vec2(0, 0)).mul(1 / num).sub(boidPos);
+	    if (num > 0) {
+		var cohesion = localFlockmates.reduce(function(s, b2) {
+		    s.op_add(new b2Vec2(b2.shape.x, b2.shape.y));
+                    return s;
+		}, new b2Vec2(0, 0)).mul(1 / num).sub(boidPos);
 
-            var separation = localFlockmates.reduce(function(s, b2) {
-		try {
+		var separation = localFlockmates.reduce(function(s, b2) {
+		    try {
+			var b2Pos = new b2Vec2(b2.shape.x, b2.shape.y);
+			var dd = boidPos.clone().sub(b2Pos).LengthSquared();
+			var vec = b2Pos.clone().sub(boidPos).mul(1 / dd);
+			s.op_add(vec);
+			return s;
+		    } catch(e) {
+			console.log({boidPos: boidPos, b2Pos: b2Pos, dd: dd, vec: vec, s: s, b2: b2});
+			createjs.Ticker.removeAllEventListeners();
+			console.error('stopped', e);
+		    }
+		}, new b2Vec2(0, 0));
+		var alignment = localFlockmates.reduce(function(s, b2) {
 		    var b2Pos = new b2Vec2(b2.shape.x, b2.shape.y);
-                    var dd = boidPos.clone().sub(b2Pos).LengthSquared();
-                    var vec = b2Pos.clone().sub(boidPos).mul(1 / dd);
-                    s.op_add(vec);
-		    return s;
-		} catch(e) {
-		    console.log({boidPos: boidPos, b2Pos: b2Pos, dd: dd, vec: vec, s: s, b2: b2});
-		    createjs.Ticker.removeAllEventListeners();
-		    console.log('stopped', e);
+		    var move = b2.move;
+		    if (move) {
+			var heading = move.endPos.clone().sub(b2Pos).mul(1 / (move.endTime - move.startTime));
+			s.op_add(heading);
+		    }
+                    return s;
+		}, new b2Vec2(0, 0)).mul(1 / num);
+		if (b.move) {
+		    alignment.sub(b.move.endPos.clone().sub(b.move.startPos)
+				  .mul(1 / b.move.endTime - b.move.startTime));
 		}
-            }, new b2Vec2(0, 0));
-            var alignment = localFlockmates.reduce(function(s, b2) {
-                
-            }, new b2Vec2(0, 0));
+
+		var heading = cohesion.mul(1).add(separation.mul(100)).add(alignment.mul(1)).mul(100);
+		// console.log(heading.toJSON());
+		// console.log(cohesion.toJSON(), separation.toJSON(), alignment.toJSON());
+		var newDestPos = boidPos.clone().add(heading);
+		var duration = heading.Length() * 10 | 0;
+		var currTime = new Date().getTime();
+		var move = new Move(boidPos, newDestPos, currTime, currTime + duration);
+		var state = b.state + 1;
+		ws.send(JSON.stringify({move: move, state: state, avatar: b.name}));
+	    }
         }
     });
 }
@@ -188,6 +215,7 @@ $(document).ready(function() {
     };
     boids.forEach(function(b, i) {
         var name = boidName(i);
+	b.name = name;
         avatars[name] = b;
     });
 
@@ -208,7 +236,7 @@ $(document).ready(function() {
     createjs.Ticker.addEventListener("tick", function(event) {
         streamBox[0].head()();
         streamBox[0] = streamBox[0].tail();
-        updateBoids(boids, avatar);
+        updateBoids(boids, avatar, ws);
         stage.update();
     });
 });
@@ -252,7 +280,7 @@ MoveStream.prototype.head = function() {
         }
 
         if (avatar.state < state) {
-            console.log("state", avatar.state, state);
+            // console.log("state", avatar.state, state);
             avatar.state = state;
         }
     }
@@ -263,7 +291,7 @@ MoveStream.prototype.tail = function() {
         return null;
     }
     if (this.avatar.state > this.state) {
-        console.log("previous move canceled");
+        // console.log("previous move canceled");
         return null;
     }
 
@@ -299,12 +327,12 @@ MergedStream.prototype.tail = function() {
 
 function onMessage(user, stage, avatars, streamBox) {
     return function(event) {
-        console.log("onMessage", event);
+        // console.log("onMessage", event);
         var match = event.data.match(/(.*)?: (.*)$/);
         if (match) {
             var who = match[1];
             var action = JSON.parse(match[2]);
-            console.log(who, action);
+            // console.log(who, action);
             var avatarId = action.avatar
             if (avatarId) {
                 if (!avatars[avatarId]) {

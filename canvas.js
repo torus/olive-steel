@@ -26,11 +26,24 @@ function putLocalAvatar(stage) {
 }
 
 var Avatar = function() {
+    var container = new createjs.Container();
     var circle = new createjs.Shape();
     circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 5);
 
+    var cohesion = new createjs.Shape();
+    cohesion.graphics.beginStroke("red").moveTo(0, 0).lineTo(1, 0).endStroke;
+    var separation = new createjs.Shape();
+    separation.graphics.beginStroke("green").moveTo(0, 0).lineTo(1, 0).endStroke;
+    var alignment = new createjs.Shape();
+    alignment.graphics.beginStroke("blue").moveTo(0, 0).lineTo(1, 0).endStroke;
+
+    container.addChild(circle, cohesion, separation, alignment);
+
     this.move = null;
-    this.shape = circle;
+    this.shape = container;
+    this.cohesion = cohesion;
+    this.separation = separation;
+    this.alignment = alignment;
     this.state = 0;
 }
 
@@ -156,13 +169,14 @@ function updateBoids(boids, avatar, ws) {
                     return s;
 		}, new b2Vec2(0, 0)).mul(1 / num).sub(boidPos);
 
-		cohesion.add(leaderPos.clone().sub(boidPos).mul(10)).mul(0.01);
+		cohesion.add(leaderPos.clone().sub(boidPos).mul(10)).mul(0.02);
 
 		var separation = localFlockmates.reduce(function(s, b2) {
 		    try {
 			var b2Pos = new b2Vec2(b2.shape.x, b2.shape.y);
 			var dd = boidPos.clone().sub(b2Pos).LengthSquared();
-			var vec = b2Pos.clone().sub(boidPos).mul(1 / dd);
+			var vec = b2Pos.clone().sub(boidPos).mul(100 / dd);
+			// vec.Normalize();
 			s.op_add(vec);
 			return s;
 		    } catch(e) {
@@ -170,28 +184,47 @@ function updateBoids(boids, avatar, ws) {
 			createjs.Ticker.removeAllEventListeners();
 			console.error('stopped', e);
 		    }
-		}, new b2Vec2(0, 0)).mul(1000);
+		}, new b2Vec2(0, 0));
+		// separation.Normalize();
+		separation.mul(10);
 
 		var alignment = localFlockmates.reduce(function(s, b2) {
 		    var b2Pos = new b2Vec2(b2.shape.x, b2.shape.y);
 		    var move = b2.move;
 		    if (move) {
-			var heading = move.endPos.clone().sub(b2Pos).mul(1 / (move.endTime - move.startTime));
+			var heading = move.endPos.clone().sub(b2Pos).
+			    mul(1 / (move.endTime - move.startTime));
 			s.op_add(heading);
 		    }
                     return s;
-		}, new b2Vec2(0, 0)).mul(1 / num);
+		}, new b2Vec2(0, 0)).mul(100 / num);
 		if (b.move) {
 		    alignment.sub(b.move.endPos.clone().sub(b.move.startPos)
-				  .mul(1 / b.move.endTime - b.move.startTime));
+				  .mul(1 / (b.move.endTime - b.move.startTime)));
 		}
-		alignment.mul(1000);
+		alignment.mul(10);
 
-		var heading = cohesion.add(separation).add(alignment).mul(100);
-		// console.log(heading.toJSON());
-		// console.log(cohesion.toJSON(), separation.toJSON(), alignment.toJSON());
+		var heading = cohesion.clone().add(separation).add(alignment)
+		// heading.Normalize();
+		// heading.mul(100);
+
+		b.cohesion.scaleX = cohesion.Length();
+		var rot = Math.atan(cohesion.get_y() / cohesion.get_x()) * 180 / Math.PI +
+		    ((cohesion.get_x() < 0) ? 180 : 0);
+		b.cohesion.rotation = rot;
+
+		b.separation.scaleX = separation.Length();
+		var rot = Math.atan(separation.get_y() / separation.get_x()) * 180 / Math.PI +
+		    ((separation.get_x() < 0) ? 180 : 0);
+		b.separation.rotation = rot;
+
+		b.alignment.scaleX = alignment.Length();
+		var rot = Math.atan(alignment.get_y() / alignment.get_x()) * 180 / Math.PI +
+		    ((alignment.get_x() < 0) ? 180 : 0);
+		b.alignment.rotation = rot;
+
 		var newDestPos = boidPos.clone().add(heading);
-		var duration = heading.Length() * 50 | 0;
+		var duration = heading.Length() * 4 | 0;
 		var currTime = new Date().getTime();
 		var move = new Move(boidPos, newDestPos, currTime, currTime + duration);
 		var state = b.state + 1;
@@ -352,6 +385,7 @@ function onMessage(user, stage, avatars, streamBox) {
 		    var m = new Move(new b2Vec2(move.startPos.x, move.startPos.y),
 				     new b2Vec2(move.endPos.x, move.endPos.y),
 				     move.startTime, move.endTime);
+		    avatar.move = m;
                     streamBox[0] = new MergedStream(streamBox[0], new MoveStream(avatar, m, state));
                 }
             }

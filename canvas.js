@@ -175,13 +175,13 @@ function updateBoids(boids, avatar, ws) {
                     return s;
 		}, new b2Vec2(0, 0)).mul(1 / num).sub(boidPos);
 
-		cohesion.add(leaderPos.clone().sub(boidPos).mul(10)).mul(0.02);
+		cohesion.add(leaderPos.clone().sub(boidPos).mul(3)).mul(0.1);
 
 		var separation = localFlockmates.reduce(function(s, b2) {
 		    try {
 			var b2Pos = new b2Vec2(b2.shape.x, b2.shape.y);
 			var dd = boidPos.clone().sub(b2Pos).LengthSquared();
-			var vec = b2Pos.clone().sub(boidPos).mul(100 / dd);
+			var vec = boidPos.clone().sub(b2Pos).mul(100 / dd);
 			// vec.Normalize();
 			s.op_add(vec);
 			return s;
@@ -216,7 +216,7 @@ function updateBoids(boids, avatar, ws) {
 		updateDebugVector(b.alignment, alignment);
 
 		var newDestPos = boidPos.clone().add(heading);
-		var duration = heading.Length() * 4 | 0;
+		var duration = heading.Length() * 10 | 0;
 		var currTime = new Date().getTime();
 		var move = new Move(boidPos, newDestPos, currTime, currTime + duration);
 		var state = b.state + 1;

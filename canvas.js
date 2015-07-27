@@ -151,12 +151,18 @@ b2Vec2.prototype.mix = function(v, r) {
     return this;
 };
 
+function updateDebugVector(shape, vec) {
+    shape.scaleX = vec.Length();
+    var rot = Math.atan(vec.get_y() / vec.get_x()) * 180 / Math.PI +
+	((vec.get_x() < 0) ? 180 : 0);
+    shape.rotation = rot;
+}
+
 function updateBoids(boids, avatar, ws) {
     var prob = createjs.Ticker.interval / 1000; // roughly once a second
     var leaderPos = new b2Vec2(avatar.shape.x, avatar.shape.y);
     boids.forEach(function(b, i) {
         if (Math.random() < prob) {
-            // console.log('updateBoids', i);
 	    var boidPos = new b2Vec2(b.shape.x, b.shape.y);
             var localFlockmates = boids.filter(function(b2) {
                 return b != b2 && boidPos.clone().sub(new b2Vec2(b2.shape.x, b2.shape.y))
@@ -185,7 +191,6 @@ function updateBoids(boids, avatar, ws) {
 			console.error('stopped', e);
 		    }
 		}, new b2Vec2(0, 0));
-		// separation.Normalize();
 		separation.mul(10);
 
 		var alignment = localFlockmates.reduce(function(s, b2) {
@@ -205,23 +210,10 @@ function updateBoids(boids, avatar, ws) {
 		alignment.mul(10);
 
 		var heading = cohesion.clone().add(separation).add(alignment)
-		// heading.Normalize();
-		// heading.mul(100);
 
-		b.cohesion.scaleX = cohesion.Length();
-		var rot = Math.atan(cohesion.get_y() / cohesion.get_x()) * 180 / Math.PI +
-		    ((cohesion.get_x() < 0) ? 180 : 0);
-		b.cohesion.rotation = rot;
-
-		b.separation.scaleX = separation.Length();
-		var rot = Math.atan(separation.get_y() / separation.get_x()) * 180 / Math.PI +
-		    ((separation.get_x() < 0) ? 180 : 0);
-		b.separation.rotation = rot;
-
-		b.alignment.scaleX = alignment.Length();
-		var rot = Math.atan(alignment.get_y() / alignment.get_x()) * 180 / Math.PI +
-		    ((alignment.get_x() < 0) ? 180 : 0);
-		b.alignment.rotation = rot;
+		updateDebugVector(b.cohesion, cohesion);
+		updateDebugVector(b.separation, separation);
+		updateDebugVector(b.alignment, alignment);
 
 		var newDestPos = boidPos.clone().add(heading);
 		var duration = heading.Length() * 4 | 0;

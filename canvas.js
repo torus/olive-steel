@@ -30,6 +30,8 @@ var Avatar = function() {
     var circle = new createjs.Shape();
     circle.graphics.beginFill("DeepSkyBlue").drawCircle(0, 0, 5);
 
+    var debugContainer = new createjs.Container();
+
     var cohesion = new createjs.Shape();
     cohesion.graphics.beginStroke("red").moveTo(0, 0).lineTo(1, 0).endStroke;
     var separation = new createjs.Shape();
@@ -37,13 +39,15 @@ var Avatar = function() {
     var alignment = new createjs.Shape();
     alignment.graphics.beginStroke("blue").moveTo(0, 0).lineTo(1, 0).endStroke;
 
-    container.addChild(circle, cohesion, separation, alignment);
+    debugContainer.addChild(cohesion, separation, alignment);
+    container.addChild(circle, debugContainer);
 
     this.move = null;
     this.shape = container;
     this.cohesion = cohesion;
     this.separation = separation;
     this.alignment = alignment;
+    this.debug = debugContainer;
     this.state = 0;
 }
 
@@ -175,7 +179,9 @@ function updateBoids(boids, avatar, ws) {
                     return s;
 		}, new b2Vec2(0, 0)).mul(1 / num).sub(boidPos);
 
-		cohesion.add(leaderPos.clone().sub(boidPos).mul(3)).mul(0.1);
+		cohesion.add(leaderPos.clone().sub(boidPos)).mul(0.5);
+		// cohesion.add(leaderPos.clone().sub(boidPos).mul(100 / (num + 100)));
+		// cohesion.add(leaderPos.clone().sub(boidPos).mul(3)).mul(0.1);
 
 		var separation = localFlockmates.reduce(function(s, b2) {
 		    try {
@@ -215,12 +221,14 @@ function updateBoids(boids, avatar, ws) {
 		updateDebugVector(b.separation, separation);
 		updateDebugVector(b.alignment, alignment);
 
-		var newDestPos = boidPos.clone().add(heading);
-		var duration = heading.Length() * 10 | 0;
-		var currTime = new Date().getTime();
-		var move = new Move(boidPos, newDestPos, currTime, currTime + duration);
-		var state = b.state + 1;
-		ws.send(JSON.stringify({move: move, state: state, avatar: b.name}));
+		if (heading.Length() > 10) {
+		    var newDestPos = boidPos.clone().add(heading);
+		    var duration = heading.Length() * 20 | 0;
+		    var currTime = new Date().getTime();
+		    var move = new Move(boidPos, newDestPos, currTime, currTime + duration);
+		    var state = b.state + 1;
+		    ws.send(JSON.stringify({move: move, state: state, avatar: b.name}));
+		}
 	    }
         }
     });
@@ -269,6 +277,16 @@ $(document).ready(function() {
         updateBoids(boids, avatar, ws);
         stage.update();
     });
+
+    var updateDebug = function() {
+	var checked = this.checked;
+	Object.keys(avatars).forEach(function(k) {
+	    var a = avatars[k];
+	    a.debug.visible = checked;
+	});
+    };
+    $("#debug").change(updateDebug);
+    updateDebug();
 });
 
 function createWebSocket(path) {
